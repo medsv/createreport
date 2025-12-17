@@ -1,5 +1,6 @@
 import os
 import tempfile
+import zipfile
 import streamlit as st
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -87,20 +88,23 @@ def create_photo_presentation(photo_mapping_file, photo_folder_path):
 st.title("Создание отчёта из набора фотографий")
 
 uploaded_mapping_file = st.file_uploader("Загрузите файл подписей к фотографиям (.txt)", type=["txt"])
-photo_folder_path = st.text_input("Укажите путь к папке с фотографиями (скопируйте из адресной строки файлового менеджера)")
+uploaded_zip = st.file_uploader("Загрузите ZIP-архив с фотографиями", type=["zip"])
 
 if st.button("Создать отчёт"):
-    if not (uploaded_mapping_file and photo_folder_path):
-        st.error("Загрузите файл c подписями к фотографиям и укажите путь к папке с фотографиями.")
+    if not (uploaded_mapping_file and uploaded_zip):
+        st.error("Загрузите файл с подписями к фотографиям и ZIP-архив с фотографиями.")
     else:
-        if not os.path.exists(photo_folder_path):
-            st.error(f"Указанный путь к папке с фотографиями не существует: {photo_folder_path}")
-        else:
+        # Create a temporary directory to extract the ZIP contents
+        with tempfile.TemporaryDirectory() as temp_dir:
             try:
-                # Process the file and create the new presentation
+                # Extract the uploaded ZIP file to the temporary directory
+                with zipfile.ZipFile(uploaded_zip, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+                
+                # Call the presentation creation function with the temporary directory path
                 final_prs = create_photo_presentation(
                     uploaded_mapping_file,
-                    photo_folder_path
+                    temp_dir
                 )
 
                 # Save the final presentation to a temporary file
@@ -115,13 +119,12 @@ if st.button("Создать отчёт"):
                         file_name="project_photo_report.pptx",
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                     )
-                
-                # Optional: Clean up the temporary file after download is initiated
-                # Note: This might not work perfectly with Streamlit's download button flow
-                # os.remove(temp_file_path)
-
+                    
+            except zipfile.BadZipFile:
+                st.error("Загруженный файл не является действительным ZIP-архивом.")
             except Exception as e:
-                st.error(f"Произошла ошибка при создании презентации: {e}")
+                st.error(f"Произошла ошибка при обработке ZIP-архива или создании презентации: {e}")
+
 st.markdown(
         """
         <hr>
