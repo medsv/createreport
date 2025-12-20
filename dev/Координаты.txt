@@ -1,0 +1,4 @@
+slide.shapes[0].left, slide.shapes[0].top, slide.shapes[0].width, slide.shapes[0].height
+(517206, 2200942, 5439211, 3996000)
+slide.shapes[1].left, slide.shapes[1].top, slide.shapes[1].width, slide.shapes[1].height
+(6235585, 2202847, 5442382, 3996000)
