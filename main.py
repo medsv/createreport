@@ -3,42 +3,42 @@ import tempfile
 import zipfile
 import streamlit as st
 from pptx import Presentation
-from pptx.util import Inches, Pt
+#from pptx.util import Inches, Pt
 import chardet
-from pptx.enum.shapes import PP_PLACEHOLDER_TYPE
+# from pptx.enum.shapes import PP_PLACEHOLDER_TYPE
 
 
-def create_photo_presentation(project_title, photo_mapping_file, photo_folder_path):
+st.set_page_config(
+    page_icon="📷",
+    page_title="Создание презентации из набора фотографий"
+)
+
+def create_photo_presentation(project_title, photo_mapping_content_bytes, photo_folder_path):
     """Creates a new presentation with slides for each photo and title."""
 
     i_title = 0  # Индекс названия проекта
     i_title1 = 12  # Индекс подписи левой фотографии
     i_title2 = 13 # Индекс подписи правой фотографии
-    i_page_number = 2 # Индекс номера страницы
 
     prs = Presentation(os.path.join('template', '04_1.pptx'))
-    slide_layout = prs.slide_layouts[0]  # Только один шаблон 
-    slide = prs.slides[0]  # Первый слайд
+    slide_layout = prs.slide_layouts[0]  # выбираем шаблон 
+    slide = prs.slides[0]  # Первый слайд (в нашем случае единстввенный)
     slide.placeholders[i_title].text = project_title
-    # Detect encoding of the uploaded text file
-    raw_data = photo_mapping_file.read()
-    encoding = chardet.detect(raw_data)['encoding']
-    photo_mapping_file.seek(0) # Reset file pointer to beginning after reading for detection
     
-    # Read the photo mapping using the detected encoding
-    photo_mapping_content = photo_mapping_file.read().decode(encoding)
+    # Detect encoding of the bytes content
+    encoding = chardet.detect(photo_mapping_content_bytes)['encoding']
+    # Decode the bytes using the detected encoding
+    photo_mapping_content = photo_mapping_content_bytes.decode(encoding)
     lines = photo_mapping_content.strip().split('\n')
 
-
-
     # Координаты областей для вставки фотографий
-    left1 = 517206
-    left2 = 6235585
+    left1 = 517206  # левая фотография
+    left2 = 6235585  # правая фотография
     top = 2200942
     width = 5442382
     height = 3996000
 
-    N = 0 # количество вставленных в презинтацию фотографий
+    N = 0 # количество вставленных в презентацию фотографий
 
     for i,line in enumerate(lines):
         line = line.strip()
@@ -52,8 +52,6 @@ def create_photo_presentation(project_title, photo_mapping_file, photo_folder_pa
         filename = filename.strip()
         title = title.strip()
 
-        
-
         image_path = os.path.join(photo_folder_path, filename)
         if not os.path.exists(image_path):
             print(f"Warning: Image {image_path} not found, skipping.")
@@ -63,25 +61,7 @@ def create_photo_presentation(project_title, photo_mapping_file, photo_folder_pa
         if i>0 and i % 2 == 0:
             slide = prs.slides.add_slide(slide_layout)
             slide.placeholders[i_title].text = project_title 
-            #slide.shapes[i_title].text_frame.text = project_title 
-            # slide.shapes[i_page_number].text_frame.text = str(i // 2 + 1) 
                   
-
-        # Add title to the slide
-#        title_shape = slide.shapes.title
-#        if title_shape is not None: # Check if title placeholder exists
-#            title_shape.text = title
-#            #from pptx.dml.color import RGBColor
-#            #from pptx.enum.text import PP_ALIGN
-#            title_shape.text_frame.paragraphs[0].font.size = Pt(24) # Требует from pptx.util import Pt
-
-        # Add image, attempting to fit it well
-        # Define margins and maximum space for the image
-        #left = Inches(0.5)
-        #top = Inches(1.5) # Leave space for the title
-        #width = Inches(9)  # Set desired max width
-        #height = Inches(5) # Set desired max height
-
         if i % 2 == 0:
             left = left1
             slide.placeholders[i_title1].text = title
@@ -119,20 +99,20 @@ def create_photo_presentation(project_title, photo_mapping_file, photo_folder_pa
             # Optionally, add a text box indicating the image could not be loaded
             textbox = slide.shapes.add_textbox(left, top, width, height)
             textbox.text = f"Изображение не найдено или невозможно загрузить: {filename}"
-    if N % 2 != 0: # если количество фотографий нечтное, то "обнуляем" заголоаок правой части
+    if N % 2 != 0: # если количество фотографий нечётное, то "обнуляем" заголоаок правой части
         slide.placeholders[i_title2].text = ' '
     return prs
 
-st.title("Создание отчёта из набора фотографий")
+st.title("Создание презентации из набора фотографий")
 
-project_title: str = st.text_input(label="Введите название проекта", value="Мой проект")
+project_title: str = st.text_input(label="Введите название проекта (верхний заголовок на каждом слайде)", value="Мой проект")
 uploaded_zip = st.file_uploader("Загрузите ZIP-архив с фотографиями", type=["zip"])
-uploaded_mapping_file = st.file_uploader("Загрузите файл подписей к фотографиям (.txt)", type=["txt"])
+uploaded_mapping_file = st.file_uploader("НЕ ОБЯЗАТЕЛЬНО: Загрузите файл подписей к фотографиям (.txt)", type=["txt"])
 
 
-if st.button("Создать отчёт"):
-    if not (uploaded_mapping_file and uploaded_zip):
-        st.error("Загрузите файл с подписями к фотографиям и ZIP-архив с фотографиями.")
+if st.button("Создать презентацию"):
+    if not (uploaded_zip): # Теперь проверяем только ZIP
+        st.error("Загрузите ZIP-архив с фотографиями.")
     else:
         # Create a temporary directory to extract the ZIP contents
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -141,12 +121,27 @@ if st.button("Создать отчёт"):
                 with zipfile.ZipFile(uploaded_zip, 'r') as zip_ref:
                     zip_ref.extractall(temp_dir)
                 
-                # Call the presentation creation function with the temporary directory path
-                final_prs = create_photo_presentation(
-                    project_title,
-                    uploaded_mapping_file,
-                    temp_dir
-                )
+                # --- Генерация файла сопоставления или чтение загруженного ---
+                if uploaded_mapping_file is None:
+                     # Получаем отсортированный список файлов извлечённых из ZIP и сортируем
+                     extracted_files = sorted([f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f))])
+                     
+                     # Формируем строки вида "имя_файла: Добавить описание!"
+                     mapping_lines = []
+                     for filename in extracted_files:
+                         line = f"{filename}: ДобавитьОписание\n"
+                         mapping_lines.append(line)
+                     
+                     # Записываем строки в байтовую строку в кодировке UTF-8
+                     mapping_content_str = "".join(mapping_lines)
+                     mapping_content_bytes = mapping_content_str.encode('utf-8')
+                     
+                else: # Если файл сопоставления был загружен
+                    # Читаем байты из загруженного файла
+                    mapping_content_bytes = uploaded_mapping_file.read()
+                
+                # Вызываем функцию создания презентации с байтами содержимого файла сопоставления
+                final_prs = create_photo_presentation(project_title, mapping_content_bytes, temp_dir)
 
                 # Save the final presentation to a temporary file
                 temp_file_path = os.path.join(tempfile.gettempdir(), "photo_report.pptx")
@@ -155,9 +150,9 @@ if st.button("Создать отчёт"):
                 # Provide the file for download
                 with open(temp_file_path, "rb") as f:
                     st.download_button(
-                        label="Скачать отчёт",
+                        label="Скачать презентацию",
                         data=f,
-                        file_name="Фотоотчёт.pptx",
+                        file_name="Презентация.pptx",
                         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation"
                     )
                     
