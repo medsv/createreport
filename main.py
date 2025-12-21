@@ -13,14 +13,21 @@ st.set_page_config(
     page_title="Создание презентации из набора фотографий"
 )
 
-def create_photo_presentation(project_title, photo_mapping_content_bytes, photo_folder_path):
+def create_photo_presentation(company, project_title, photo_mapping_content_bytes, photo_folder_path):
     """Creates a new presentation with slides for each photo and title."""
 
     i_title = 0  # Индекс названия проекта
     i_title1 = 12  # Индекс подписи левой фотографии
     i_title2 = 13 # Индекс подписи правой фотографии
+    if company == "эВ-групп":
+        prs_template = 'эВ_04_1.pptx' 
+    elif company == "ЭнергоCеть":
+        prs_template = 'ЭС_04_1.pptx'
+    else:
+        raise ValueError("Для данного юридического лица нет шаблона презентации")
+        
 
-    prs = Presentation(os.path.join('template', '04_1.pptx'))
+    prs = Presentation(os.path.join('template', prs_template))
     slide_layout = prs.slide_layouts[0]  # выбираем шаблон 
     slide = prs.slides[0]  # Первый слайд (в нашем случае единстввенный)
     slide.placeholders[i_title].text = project_title
@@ -51,7 +58,7 @@ def create_photo_presentation(project_title, photo_mapping_content_bytes, photo_
         filename, title = line.split(':', 1) # Split on first colon only
         filename = filename.strip()
         title = title.strip()
-
+        
         image_path = os.path.join(photo_folder_path, filename)
         if not os.path.exists(image_path):
             print(f"Warning: Image {image_path} not found, skipping.")
@@ -105,6 +112,12 @@ def create_photo_presentation(project_title, photo_mapping_content_bytes, photo_
 
 st.title("Создание презентации из набора фотографий")
 
+company = st.selectbox(
+    "Выберети юридическое лицо",
+    ("эВ-групп", "ЭнергоCеть"),
+    index=None,
+    placeholder="Select contact method...",
+)
 project_title: str = st.text_input(label="Введите название проекта (верхний заголовок на каждом слайде)", value="Мой проект")
 uploaded_zip = st.file_uploader("Загрузите ZIP-архив с фотографиями", type=["zip"])
 uploaded_mapping_file = st.file_uploader("НЕ ОБЯЗАТЕЛЬНО: Загрузите файл подписей к фотографиям (.txt)", type=["txt"])
@@ -141,7 +154,7 @@ if st.button("Создать презентацию"):
                     mapping_content_bytes = uploaded_mapping_file.read()
                 
                 # Вызываем функцию создания презентации с байтами содержимого файла сопоставления
-                final_prs = create_photo_presentation(project_title, mapping_content_bytes, temp_dir)
+                final_prs = create_photo_presentation(company, project_title, mapping_content_bytes, temp_dir)
 
                 # Save the final presentation to a temporary file
                 temp_file_path = os.path.join(tempfile.gettempdir(), "photo_report.pptx")
