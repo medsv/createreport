@@ -113,10 +113,10 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
 st.title("Создание презентации из набора фотографий")
 
 company = st.selectbox(
-    "Выберети юридическое лицо",
+    "Выберите юридическое лицо",
     ("эВ-групп", "ЭнергоCеть"),
-    index=None,
-    placeholder="Select contact method...",
+    index=0,
+    placeholder=None,
 )
 project_title: str = st.text_input(label="Введите название проекта (верхний заголовок на каждом слайде)", value="Мой проект")
 uploaded_zip = st.file_uploader("Загрузите ZIP-архив с фотографиями", type=["zip"])
