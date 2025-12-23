@@ -46,30 +46,43 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
     height = 3996000
 
     N = 0 # количество вставленных в презентацию фотографий
-
-    for i,line in enumerate(lines):
+    skipped = 0 # количество пропущенных (не добавленных в презентацию) фотографий
+    for i, line in enumerate(lines):
         line = line.strip()
         if not line:
+            skipped += 1
+            st.warning(f"Пустая строка №{i+1} , пропускаем.")
             continue # Skip empty lines
         if ':' not in line:
-            print(f"Warning: Line '{line}' does not contain a colon, skipping.")
+            skipped += 1
+            #print(f"Warning: Line '{line}' does not contain a colon, skipping.")
+            st.warning(f"Строка №{i+1} '{line}' не соответствует требуемому формату [название_файла]: [описание файла], пропускаем.")
+            continue # Or handle malformed lines differently
+        if line.count(':') > 1:
+            skipped += 1
+            #print(f"Warning: Line '{line}' contains multiple colons, skipping.")
+            st.warning(f"Строка '{line}' т двоеточия с последующим описанием фотографии, пропускаем.")
             continue # Or handle malformed lines differently
 
         filename, title = line.split(':', 1) # Split on first colon only
         filename = filename.strip()
         title = title.strip()
+        if not title: title = filename
         
         image_path = os.path.join(photo_folder_path, filename)
         if not os.path.exists(image_path):
-            print(f"Warning: Image {image_path} not found, skipping.")
+            skipped += 1
+            #print(f"Warning: Image {image_path} not found, skipping.")
+            st.warning(f"Файл {filename} не найден в ZIP-архиве, пропускаем.")
             continue # Or handle the missing image as needed
 
         # если не нулевая фотогравия и чётная, то создаём слайд
-        if i>0 and i % 2 == 0:
+        j: int = i - skipped
+        if j>0 and j % 2 == 0:
             slide = prs.slides.add_slide(slide_layout)
             slide.placeholders[i_title].text = project_title 
                   
-        if i % 2 == 0:
+        if j % 2 == 0:
             left = left1
             slide.placeholders[i_title1].text = title
         else:
@@ -106,7 +119,7 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
             # Optionally, add a text box indicating the image could not be loaded
             textbox = slide.shapes.add_textbox(left, top, width, height)
             textbox.text = f"Изображение не найдено или невозможно загрузить: {filename}"
-    if N % 2 != 0: # если количество фотографий нечётное, то "обнуляем" заголоаок правой части
+    if N % 2 != 0: # если количество фотографий нечётное, то "обнуляем" заголовок правой части
         slide.placeholders[i_title2].text = ' '
     return prs
 
@@ -142,7 +155,8 @@ if st.button("Создать презентацию"):
                      # Формируем строки вида "имя_файла: Добавить описание!"
                      mapping_lines = []
                      for filename in extracted_files:
-                         line = f"{filename}: ДобавитьОписание\n"
+                         #line = f"{filename}: ДобавитьОписание\n"
+                         line = f"{filename}: {filename}\n"
                          mapping_lines.append(line)
                      
                      # Записываем строки в байтовую строку в кодировке UTF-8
@@ -159,7 +173,7 @@ if st.button("Создать презентацию"):
                 # Save the final presentation to a temporary file
                 temp_file_path = os.path.join(tempfile.gettempdir(), "photo_report.pptx")
                 final_prs.save(temp_file_path)
-
+                st.success("Презентация создана.")
                 # Provide the file for download
                 with open(temp_file_path, "rb") as f:
                     st.download_button(
