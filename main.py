@@ -5,8 +5,10 @@ import streamlit as st
 from pptx import Presentation
 #from pptx.util import Inches, Pt
 import chardet
-# from pptx.enum.shapes import PP_PLACEHOLDER_TYPE
-
+from datetime import date  # Для определения текущей даты
+#from pptx.enum.shapes import PP_PLACEHOLDER_TYPE
+# Добавьте импорт для доступа к типам плейсхолдеров
+#from pptx.enum.shapes import PP_PLACEHOLDER
 
 st.set_page_config(
     page_icon="📷",
@@ -19,18 +21,30 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
     i_title = 0  # Индекс названия проекта
     i_title1 = 12  # Индекс подписи левой фотографии
     i_title2 = 13 # Индекс подписи правой фотографии
+    i_slide_number = 4  # Индекс номера слайда
+    i_footer = 11  # Индекс футера
+
     if company == "эВ-групп":
-        prs_template = 'эВ_04_1.pptx' 
+        #prs_template = 'эВ_04_1.pptx' 
+        prs_template = 'эВ.pptx'
     elif company == "ЭнергоCеть":
-        prs_template = 'ЭС_04_1.pptx'
+        prs_template = 'ЭС.pptx'
     else:
         raise ValueError("Для данного юридического лица нет шаблона презентации")
         
 
     prs = Presentation(os.path.join('template', prs_template))
-    slide_layout = prs.slide_layouts[0]  # выбираем шаблон 
-    slide = prs.slides[0]  # Первый слайд (в нашем случае единстввенный)
-    slide.placeholders[i_title].text = project_title
+    slide = prs.slides.add_slide(prs.slide_layouts[0])  # создаём титульный слайд
+    placeholders = list(slide.placeholders)
+    # Обращаемся по индексу в списке (0, 1, 2...)
+    #placeholders[0].text не вставляет
+    placeholders[1].text = project_title
+    placeholders[2].text = f"Фотоотчёт на {date.today().strftime('%d.%m.%Y')}"
+
+    #slide_layout = prs.slide_layouts[0]  # выбираем шаблон 
+    slide_layout = prs.slide_layouts[1]  # выбираем шаблон для основных слайдов презентации
+    #slide = prs.slides[0]  # Первый слайд (в нашем случае единстввенный)
+    #slide.placeholders[i_title].text = project_title
     
     # Detect encoding of the bytes content
     encoding = chardet.detect(photo_mapping_content_bytes)['encoding']
@@ -51,18 +65,14 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
         line = line.strip()
         if not line:
             skipped += 1
-            st.warning(f"Пустая строка №{i+1} , пропускаем.")
+            st.warning(f"Пустая строка №{i+1}, идём дальше.")
             continue # Skip empty lines
         if ':' not in line:
             skipped += 1
             #print(f"Warning: Line '{line}' does not contain a colon, skipping.")
             st.warning(f"Строка №{i+1} '{line}' не соответствует требуемому формату [название_файла]: [описание файла], пропускаем.")
             continue # Or handle malformed lines differently
-        if line.count(':') > 1:
-            skipped += 1
-            #print(f"Warning: Line '{line}' contains multiple colons, skipping.")
-            st.warning(f"Строка '{line}' т двоеточия с последующим описанием фотографии, пропускаем.")
-            continue # Or handle malformed lines differently
+
 
         filename, title = line.split(':', 1) # Split on first colon only
         filename = filename.strip()
@@ -76,9 +86,10 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
             st.warning(f"Файл {filename} не найден в ZIP-архиве, пропускаем.")
             continue # Or handle the missing image as needed
 
-        # если не нулевая фотогравия и чётная, то создаём слайд
+        # если не нулевая фотография и чётная, то создаём слайд
         j: int = i - skipped
-        if j>0 and j % 2 == 0:
+        #if j>0 and j % 2 == 0:
+        if j % 2 == 0:  # создаём новый слайд
             slide = prs.slides.add_slide(slide_layout)
             slide.placeholders[i_title].text = project_title 
                   
@@ -121,6 +132,11 @@ def create_photo_presentation(company, project_title, photo_mapping_content_byte
             textbox.text = f"Изображение не найдено или невозможно загрузить: {filename}"
     if N % 2 != 0: # если количество фотографий нечётное, то "обнуляем" заголовок правой части
         slide.placeholders[i_title2].text = ' '
+
+
+    slide = prs.slides.add_slide(prs.slide_layouts[2])  # добавляем конечный слайд
+
+
     return prs
 
 st.title("Создание презентации из набора фотографий")
@@ -193,7 +209,7 @@ st.markdown(
         <hr>
         <p style="text-align: left; color: gray;">
         <small>
-        2025, С.В. Медведев
+        2025-2026, С.В. Медведев
         </small>
         </p>
         """,
